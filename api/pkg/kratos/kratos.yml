@@ -7,8 +7,8 @@ serve:
     cors:
       enabled: true
       allowed_origins:
-        - http://127.0.0.1:5000
-        - http://localhost:5000
+        - http://127.0.0.1:5500
+        - http://localhost:5500
       allowed_methods:
         - POST
         - GET
@@ -28,9 +28,9 @@ serve:
     port: 4434
 
 selfservice:
-  default_browser_return_url: http://127.0.0.1:5000
+  default_browser_return_url: http://127.0.0.1:5500
   allowed_return_urls:
-    - http://127.0.0.1:5000
+    - http://127.0.0.1:5500
 
   methods:
     password:
@@ -65,31 +65,31 @@ selfservice:
 
   flows:
     error:
-      ui_url: http://127.0.0.1:5000/error
+      ui_url: http://127.0.0.1:5500/error
 
     settings:
-      ui_url: http://127.0.0.1:5000/settings
+      ui_url: http://127.0.0.1:5500/settings
       privileged_session_max_age: 15m
       required_aal: highest_available
 
     recovery:
       enabled: true
-      ui_url: http://127.0.0.1:5000/recovery
+      ui_url: http://127.0.0.1:5500/recovery
       use: code
 
     verification:
       enabled: true
-      ui_url: http://127.0.0.1:5000/verification
+      ui_url: http://127.0.0.1:5500/verification
       use: code
       after:
-        default_browser_return_url: http://127.0.0.1:5000/account/login
+        default_browser_return_url: http://127.0.0.1:5500/account/login
 
     logout:
       after:
-        default_browser_return_url: http://127.0.0.1:5000/login
+        default_browser_return_url: http://127.0.0.1:5500/login
 
     login:
-      ui_url: http://127.0.0.1:5000/account/login
+      ui_url: http://127.0.0.1:5500/account/login
       # http://127.0.0.1:4433/self-service/login/browser?aal=&refresh=&return_to=
       after:
         default_browser_return_url: http://127.0.0.1:3000/api/v1/kratos/auth
@@ -97,7 +97,7 @@ selfservice:
 
     registration:
       lifespan: 10m
-      ui_url: http://127.0.0.1:5000/account/register
+      ui_url: http://127.0.0.1:5500/account/register
       after:
         default_browser_return_url: http://127.0.0.1:3000/api/v1/kratos/auth
         password:
@@ -140,3 +140,4 @@ cookies:
   domain: 127.0.0.1
   path: /
   same_site: Lax
+

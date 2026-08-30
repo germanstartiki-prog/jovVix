@@ -7,14 +7,12 @@ services:
       POSTGRES_USER: jovvix
       POSTGRES_PASSWORD: jovvix
       POSTGRES_DB: jovvix
-      POSTGRES_MULTIPLE_DATABASES: '"kratos-db"'
     ports:
       - 5432:5432
     volumes:
-      - ./pkg/kratos/kratos-pg-init-script:/docker-entrypoint-initdb.d
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app"]
+      test: ["CMD-SHELL", "pg_isready -U jovvix -d jovvix"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,6 +31,7 @@ services:
 
   redis:
     image: redis:latest
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     restart: always
     ports:
       - "6379:6379"
@@ -63,7 +62,7 @@ services:
       context: ./app/
       dockerfile: Dockerfile
     ports:
-      - "5000:5000"
+      - "5500:5000"
     restart: on-failure
     env_file:
       - ./app/.env.docker
@@ -88,7 +87,7 @@ services:
       - "4434:${SERVE_ADMIN_PORT:-4434}" # admin
     env_file:
       - ./api/.env.kratos
-    command: serve -c /etc/config/kratos/kratos.yml --watch-courier
+    command: serve -c /etc/config/kratos/kratos.yml --dev --watch-courier
     restart: always
     depends_on:
       db:
