@@ -11,3 +11,9 @@ app/coverage
 api/redis
 .aider*
 load-test/results
+
+# Local backups and temporary diffs
+app/Dockerfile.original
+docker-compose.original.yaml
+diff.txt
+join_diff.txt
