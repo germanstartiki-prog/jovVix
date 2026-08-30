@@ -14,7 +14,11 @@ export default class UserOperation extends QuizHandler {
   ) {
     const url = useRuntimeConfig().public;
     super(
-      url.apiSocketUrl + "/join/" + code + "?username=" + username,
+      url.apiSocketUrl +
+        "/join/" +
+        code +
+        "?username=" +
+        encodeURIComponent(username),
       code,
       handler
     );

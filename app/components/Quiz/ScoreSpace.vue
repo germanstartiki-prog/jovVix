@@ -383,7 +383,7 @@ onUnmounted(() => {
                 {{ user.firstname }}
               </p>
               <p
-                v-if="user.username === userName && user.username"
+                v-if="isAdmin && user.username"
                 class="truncate font-body text-[11px] font-bold text-jv-muted sm:text-[12px]"
               >
                 @{{ user.username }}
