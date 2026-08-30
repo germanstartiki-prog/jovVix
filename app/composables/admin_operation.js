@@ -86,6 +86,14 @@ export default class AdminOperations extends QuizHandler {
     super.handler(message);
   }
 
+  async handleTerminate() {
+    // The host already terminates the session through the HTTP API.
+    // An inbound TerminateQuiz event is only a notification that termination
+    // has completed; it must not issue another terminate request.
+    this.stopPing();
+    return { error: null };
+  }
+
   requestTerminateQuiz() {
     this.close(1000);
   }

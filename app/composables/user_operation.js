@@ -122,6 +122,13 @@ export default class UserOperation extends QuizHandler {
     }
   }
 
+  async handleTerminate() {
+    // A player receives TerminateQuiz from the server.
+    // Only the host is allowed to terminate the quiz session via the API.
+    this.stopPing();
+    return { error: null };
+  }
+
   endQuiz() {
     this.close(1000);
     this.sendMessage("", "websocket_close", "");
