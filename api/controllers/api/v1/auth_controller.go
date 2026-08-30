@@ -104,7 +104,7 @@ func (ctrl *AuthController) DoKratosAuth(c *fiber.Ctx) error {
 				if retrying > 30 {
 					break
 				} else {
-					userStruct.Username = quizUtilsHelper.GenerateNewStringHavingSuffixName(userStruct.Username, 5, 12)
+					userStruct.Username = quizUtilsHelper.GenerateNewStringHavingSuffixName(userStruct.Username, 5, 50)
 					err = ctrl.userModel.InsertKratosUser(userStruct)
 					if err != nil {
 						retrying++

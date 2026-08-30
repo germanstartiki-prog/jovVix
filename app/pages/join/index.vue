@@ -225,7 +225,7 @@
                     v-model.trim="username"
                     type="text"
                     name="username"
-                    maxlength="12"
+                    maxlength="50"
                     placeholder="Pick a name"
                     class="flex-1 min-w-0 bg-transparent border-0 outline-none font-body text-jv-ink placeholder:text-jv-ink/40 text-sm sm:text-base"
                   />
@@ -396,6 +396,7 @@ const code = ref(
 );
 const username = ref("");
 const firstname = ref("");
+const existingGuestName = ref("");
 const isUserLoggedIn = ref(false);
 const { apiUrl } = useRuntimeConfig().public;
 const router = useRouter();
@@ -429,7 +430,7 @@ function rerollAvatar() {
 }
 
 const join_quiz = async () => {
-  username.value = username.value.trim().replace(/\s+/g, "");
+  username.value = username.value.trim().replace(/\s+/g, " ");
 
   if (!code.value || code.value.length !== 6) {
     toast.error("Please enter a valid quiz code (6 characters)");
@@ -441,13 +442,18 @@ const join_quiz = async () => {
     return;
   }
 
-  if (username.value.length > 12 && !isUserLoggedIn.value) {
-    toast.error("Username must be a maximum of 12 characters long");
+  if (username.value.length > 50 && !isUserLoggedIn.value) {
+    toast.error("Username must be a maximum of 50 characters long");
     return;
   }
 
   // create quick user
-  if (!isUserLoggedIn.value) {
+  const reuseExistingGuest =
+    !isUserLoggedIn.value &&
+    existingGuestName.value &&
+    username.value === existingGuestName.value;
+
+  if (!isUserLoggedIn.value && !reuseExistingGuest) {
     quickUserPending.value = true;
 
     try {
@@ -530,10 +536,23 @@ const join_quiz = async () => {
       headers: { Accept: "application/json" },
       ignoreResponseError: true,
     });
+
     if (response.status === 200) {
-      isUserLoggedIn.value = true;
-      firstname.value = response._data?.data?.firstname;
-      username.value = response._data?.data?.username;
+      const role = response._data?.data?.role;
+
+      firstname.value = response._data?.data?.firstname || "";
+
+      if (role === "guest-user") {
+        // For guests, show the name they actually entered.
+        // The unique username may contain an internal suffix.
+        username.value = firstname.value;
+        existingGuestName.value = firstname.value;
+        isUserLoggedIn.value = false;
+      } else {
+        username.value = response._data?.data?.username || "";
+        existingGuestName.value = "";
+        isUserLoggedIn.value = true;
+      }
     } else if (response.status === 401) {
       isUserLoggedIn.value = false;
     } else {

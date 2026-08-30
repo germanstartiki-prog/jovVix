@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/Improwised/jovvix/api/config"
@@ -119,7 +120,11 @@ func (ctrl *UserController) GetUserMeta(c *fiber.Ctx) error {
 //	     400: GenericResFailNotFound
 //		  500: GenericResError
 func (ctrl *UserController) CreateGuestUser(c *fiber.Ctx) error {
-	username := c.Params(constants.Username)
+
+	username, err := url.PathUnescape(c.Params(constants.Username))
+	if err != nil {
+		return utils.JSONError(c, http.StatusBadRequest, "invalid username")
+	}
 
 	avatarName := c.Query("avatar_name")
 	if username == "" || avatarName == "" {
@@ -153,7 +158,7 @@ func (ctrl *UserController) CreateGuestUser(c *fiber.Ctx) error {
 				if retrying > 30 {
 					break
 				} else {
-					user.Username = quizUtilsHelper.GenerateNewStringHavingSuffixName(user.Username, 5, 12)
+					user.Username = quizUtilsHelper.GenerateNewStringHavingSuffixName(user.Username, 5, 50)
 					user, err = ctrl.userModel.InsertUser(user)
 					if err != nil {
 						retrying++
