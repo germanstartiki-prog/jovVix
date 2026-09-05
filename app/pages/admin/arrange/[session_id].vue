@@ -7,6 +7,7 @@ import { Ban } from "lucide-vue-next";
 import { useSystemEnv } from "~/composables/envs.js";
 import { useRouter } from "nuxt/app";
 import AdminOperations from "~~/composables/admin_operation";
+import { isLiveHostSessionMessage, classifyHostSessionClose } from "~/utils/host_session.js";
 
 import { useInvitationCodeStore } from "~/store/invitationcode";
 import { useListUserstore } from "~/store/userlist";
@@ -58,6 +59,41 @@ const confirmNeeded = reactive({
   action: "skip",
 });
 const terminating = ref(false);
+const hostSessionLive = ref(false);
+const normalCompletion = ref(false);
+const terminalNavigation = ref(false);
+const leaveConfirmation = ref(false);
+let resolveLeave = null;
+const shouldWarnOnLeave = () => hostSessionLive.value && !normalCompletion.value && !terminalNavigation.value;
+const beforeUnload = (event) => {
+  if (!shouldWarnOnLeave()) return;
+  event.preventDefault();
+  event.returnValue = "";
+};
+const confirmLeave = (allowed) => {
+  leaveConfirmation.value = false;
+  if (allowed && resolveLeave && shouldWarnOnLeave()) finishLeavingSession();
+  resolveLeave?.(allowed);
+  resolveLeave = null;
+};
+const guardLeave = () => {
+  if (!shouldWarnOnLeave()) return true;
+  if (resolveLeave) return false;
+  leaveConfirmation.value = true;
+  return new Promise((resolve) => { resolveLeave = resolve; });
+};
+onBeforeRouteLeave(guardLeave);
+onBeforeRouteUpdate(guardLeave);
+onMounted(() => window.addEventListener("beforeunload", beforeUnload));
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", beforeUnload);
+  confirmLeave(false);
+  if (hostSessionLive.value && !normalCompletion.value && !terminalNavigation.value) {
+    adminOperationHandler.value?.stopPing();
+    adminOperationHandler.value?.close(1000);
+    setSocketObject(null);
+  }
+});
 const currentComponent = ref("Loading");
 const adminOperationHandler = ref();
 const analysisTab = ref("ranking");
@@ -102,7 +138,8 @@ onMounted(() => {
         session_id,
         handleQuizEvents,
         handleNetworkEvent,
-        confirmSkip
+        confirmSkip,
+        handleAdminSessionClose
       );
       continueAdmin();
     } else {
@@ -110,7 +147,8 @@ onMounted(() => {
         session_id,
         handleQuizEvents,
         handleNetworkEvent,
-        confirmSkip
+        confirmSkip,
+        handleAdminSessionClose
       );
       connectAdmin();
     }
@@ -182,6 +220,13 @@ onUnmounted(() => {
 });
 
 const handleQuizEvents = async (message) => {
+  if (terminalNavigation.value) return;
+  if (isLiveHostSessionMessage(message)) {
+    hostSessionLive.value = true;
+  }
+  if (message.data === app.$SessionWasCompleted) {
+    return await leaveCompletedSession();
+  }
   if (message.status == app.$Error) {
     return await router.push(
       "/error?status=" + message.status + "&error=" + message.data
@@ -195,6 +240,9 @@ const handleQuizEvents = async (message) => {
     message.data == app.$QuizSessionValidationFailed ||
     message.data == app.$SessionWasCompleted
   ) {
+    terminalNavigation.value = true;
+    hostSessionLive.value = false;
+    confirmLeave(true);
     return await router.push(
       "/admin/arrange?status=" + message.status + "&error=" + message.data
     );
@@ -257,6 +305,38 @@ const handleQuizEvents = async (message) => {
   }
 };
 
+const finishLeavingSession = () => {
+  adminOperationHandler.value?.stopPing();
+  adminOperationHandler.value?.close(1000);
+  sessionStore.finishHostSession(session_id).then((completed) => {
+    if (!completed) toast.error("Не удалось подтвердить завершение викторины. Повторный запуск заблокирован.");
+  });
+};
+
+const leaveCompletedSession = async () => {
+  finishLeavingSession();
+  terminalNavigation.value = true;
+  hostSessionLive.value = false;
+  confirmLeave(true);
+  adminOperationHandler.value?.stopPing();
+  invitationCode.value = undefined;
+  removeAllUsers();
+  setSession(null);
+  return await router.replace("/admin/quiz/list-quiz");
+};
+
+const handleAdminSessionClose = (event) => {
+  if (normalCompletion.value || terminalNavigation.value) return;
+  const reason = classifyHostSessionClose(event);
+  if (reason === "completed") return leaveCompletedSession();
+  if (reason === "duplicate" || reason === "unauthorized") {
+    hostSessionLive.value = false;
+    toast.warning(reason === "duplicate"
+      ? "У этой викторины уже есть подключённый ведущий."
+      : "Вы не являетесь ведущим этой викторины.");
+  }
+};
+
 const connectAdmin = () => {
   adminOperationHandler.value.connectAdmin();
 };
@@ -299,6 +379,9 @@ const confirmSkip = (message) => {
 // Clean up local session state and route the host to the results view. Shared by
 // both the inbound terminate_quiz handler and the host-initiated "End Quiz" button.
 const goToScoreboardAfterTerminate = async () => {
+  normalCompletion.value = true;
+  hostSessionLive.value = false;
+  confirmLeave(true);
   invitationCode.value = undefined;
   removeAllUsers();
   setSession(null);
@@ -372,6 +455,14 @@ useSeoMeta({
 </script>
 
 <template>
+  <UtilsConfirmModal
+    v-if="leaveConfirmation"
+    modal-title="Викторина сейчас проводится."
+    modal-message="Если вы покинете или перезагрузите страницу, текущая викторина будет аварийно завершена. Продолжить?"
+    model-positive-message="Продолжить"
+    model-negative-message="Остаться"
+    @confirm-message="confirmLeave"
+  />
   <div class="bg-image"></div>
   <QuizHostNameModal
     v-if="showHostNameModal"

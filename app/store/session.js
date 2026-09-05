@@ -1,6 +1,8 @@
 import { defineStore } from "pinia";
 import { useUsersStore } from "~~/store/users";
 
+import { createSessionCleanup } from "../utils/session_cleanup.js";
+
 const SYNC_THROTTLE_MS = 30000;
 
 export const useSessionStore = defineStore(
@@ -58,38 +60,44 @@ export const useSessionStore = defineStore(
       }
     };
 
+    const cleanup = createSessionCleanup(async () => {
+      sessionsLoading.value = true;
+      try {
+        const { apiUrl } = useRuntimeConfig().public;
+        const res = await $fetch(`${apiUrl}/quiz/sessions/active`, {
+          method: "GET", credentials: "include", timeout: 1000, retry: 0,
+        });
+        if (!Array.isArray(res?.data)) throw new Error("Invalid active sessions response");
+        return res.data;
+      } finally { sessionsLoading.value = false; }
+    }, (sessions) => {
+      activeSessions.value = sessions;
+      sessionsSyncedAt.value = Date.now();
+    });
+
+    const finishHostSession = (id) => {
+      const quizId = activeSessions.value.find((s) => s.id === id)?.quiz_id;
+      removeActiveSession(id);
+      return cleanup.finish(id, quizId);
+    };
+    const canStartQuiz = (quizId) => cleanup.ready(quizId);
+
     const syncActiveSessions = async ({ force = false } = {}) => {
       if (!import.meta.client) return;
-
-      if (!useUsersStore().getUserData()) {
+      const usersStore = useUsersStore();
+      if (!usersStore.getUserData() || !usersStore.authConfirmed) {
         activeSessions.value = [];
         return;
       }
-
-      if (!force && Date.now() - sessionsSyncedAt.value < SYNC_THROTTLE_MS) {
-        return;
-      }
-
-      if (sessionsLoading.value) return;
-
-      sessionsLoading.value = true;
-      const { apiUrl } = useRuntimeConfig().public;
-
-      try {
-        const res = await $fetch(`${apiUrl}/quiz/sessions/active`, {
-          method: "GET",
-          credentials: "include",
-        });
-        activeSessions.value = Array.isArray(res?.data) ? res.data : [];
-        sessionsSyncedAt.value = Date.now();
-      } catch (error) {
+      if (!force && Date.now() - sessionsSyncedAt.value < SYNC_THROTTLE_MS) return;
+      try { await cleanup.read(force); }
+      catch (error) {
         const status = error?.response?.status || error?.statusCode;
         if (status === 401 || status === 403) {
+          usersStore.invalidateAuth();
           activeSessions.value = [];
           sessionsSyncedAt.value = Date.now();
         }
-      } finally {
-        sessionsLoading.value = false;
       }
     };
 
@@ -112,6 +120,8 @@ export const useSessionStore = defineStore(
       getActiveSessions,
       removeActiveSession,
       syncActiveSessions,
+      finishHostSession,
+      canStartQuiz,
     };
   },
   {

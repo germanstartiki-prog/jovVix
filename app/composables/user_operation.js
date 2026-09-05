@@ -133,6 +133,14 @@ export default class UserOperation extends QuizHandler {
     return { error: null };
   }
 
+  finishAdminDisconnect() {
+    this.isWaiting = false;
+    this.isOpen = false;
+    this.stopPing();
+    // The server sends its Close frame after the terminal event.
+    // Keep reading until then; onClose must not reconnect or redirect.
+  }
+
   endQuiz() {
     this.close(1000);
     this.sendMessage("", "websocket_close", "");

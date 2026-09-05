@@ -287,6 +287,10 @@ const noResultsMessage = computed(() => {
 const handleStartQuiz = async (quizId) => {
   try {
     startingQuizId.value = quizId;
+    if (!await sessionStore.canStartQuiz(quizId)) {
+      toast.error("Не удалось подтвердить завершение предыдущей викторины. Повторный запуск заблокирован.");
+      return;
+    }
     const response = await $fetch(
       `${url.apiUrl}/quizzes/${quizId}/demo_session`,
       {

@@ -33,6 +33,7 @@ const currentComponent = ref("Loading");
 const userOperationHandler = ref();
 
 const monitorTerminateQuiz = ref(false);
+const adminDisconnected = ref(false);
 const cancelled = ref(false);
 
 // for notification bars
@@ -67,7 +68,7 @@ const handleCustomChange = (isFullScreenEvent) => {
 // the banner there can explain what happened instead of leaving the player
 // stuck on the "Connecting to lobby…" skeleton.
 const handleSessionUnavailable = () => {
-  if (monitorTerminateQuiz.value) return;
+  if (monitorTerminateQuiz.value || adminDisconnected.value) return;
   if (currentComponent.value !== "Loading") return;
   router.replace(
     "/join?status=fail&error=" + encodeURIComponent(app.$SessionWasCompleted)
@@ -138,6 +139,7 @@ onMounted(async () => {
 });
 
 const handleQuizEvents = async (message) => {
+  if (adminDisconnected.value) return;
   if (message.status == app.$Error) {
     console.error(message);
     return await router.push(
@@ -164,8 +166,14 @@ const handleQuizEvents = async (message) => {
     return await router.push(
       "/join?status=" + message.status + "&error=" + message.data
     );
-  } else if (message.data == app.$AdminDisconnected) {
-    toast.warning(app.$AdminDisconnectedMessage);
+  } else if (message.event == app.$AdminDisconnected) {
+    adminDisconnected.value = true;
+    currentComponent.value = "AdminDisconnected";
+    showConnectingBar.value = false;
+    showReconnectedBar.value = false;
+    clearPlaySession();
+    userOperationHandler.value?.finishAdminDisconnect();
+    return;
   } else if (message.data == app.$PauseQuiz) {
     quizState.value = app.$Pause;
     toast.info(app.$PauseQuizMessage);
@@ -259,7 +267,7 @@ useSeoMeta({
 
 onBeforeUnmount(() => {
   cancelled.value = true;
-  if (!monitorTerminateQuiz.value) {
+  if (!monitorTerminateQuiz.value && !adminDisconnected.value) {
     userOperationHandler.value?.endQuiz();
   }
 });
@@ -285,7 +293,7 @@ onBeforeUnmount(() => {
       @is-full-screen="handleCustomChange"
     >
       <div
-        v-if="showQuizTitleBar"
+        v-if="showQuizTitleBar && !adminDisconnected"
         class="flex justify-center px-3 pt-3 sm:px-6 sm:pt-4 md:px-10"
       >
         <div
@@ -315,8 +323,13 @@ onBeforeUnmount(() => {
 
       <!-- <UserName :user-name="firstname"></UserName> -->
 
+      <section v-if="adminDisconnected" role="alert" class="mx-auto my-12 max-w-2xl rounded-xl border-2 border-jv-ink bg-jv-white p-8 text-center text-jv-ink">
+        <h1 class="text-2xl font-bold">Связь с ведущим потеряна.</h1>
+        <p class="mt-4 text-xl">Викторина завершена.</p>
+        <p class="mt-4">Закройте эту вкладку и подключитесь к новой викторине по коду ведущего.</p>
+      </section>
       <QuizWaitingSpacePlayerSkeleton
-        v-if="currentComponent === 'Loading'"
+        v-else-if="currentComponent === 'Loading'"
       ></QuizWaitingSpacePlayerSkeleton>
       <QuizWaitingSpace
         v-else-if="currentComponent === 'Waiting'"

@@ -2,7 +2,7 @@ import constants from "~~/config/constants";
 import QuizHandler from "./quiz_operation";
 
 export default class AdminOperations extends QuizHandler {
-  constructor(session_id, handler, errorHandler, skipConfirmHandler) {
+  constructor(session_id, handler, errorHandler, skipConfirmHandler, sessionCloseHandler) {
     const url = useRuntimeConfig().public;
 
     // Initialize object
@@ -16,6 +16,7 @@ export default class AdminOperations extends QuizHandler {
     this.apiUrl = url.apiUrl;
     this.errorHandler = errorHandler;
     this.skipHandler = skipConfirmHandler;
+    this.sessionCloseHandler = sessionCloseHandler;
     this.pingIntervalTime = 45000;
     this.pingInterval = null;
     this.isWaiting = true;
@@ -103,6 +104,7 @@ export default class AdminOperations extends QuizHandler {
     this.stopPing();
     super.onClose(event);
     setSocketObject(null);
+    this.sessionCloseHandler?.(event);
   }
 
   requestPauseQuiz(isPause) {

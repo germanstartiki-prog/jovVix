@@ -1,9 +1,9 @@
-**\tmp
+**/tmp
 venv
 Makefile
 *.out*
 /api/pkg/mod/
-**\.vscode
+**/.vscode
 api-logs.json
 api/data
 data
@@ -17,3 +17,19 @@ app/Dockerfile.original
 docker-compose.original.yaml
 diff.txt
 join_diff.txt
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Logs and diagnostics
+*.log
+docker-diagnostics.txt
+docker-errors.txt
+docker-last200.txt
+docker-logs.txt
+test-run-errors.log
+test-run.log
+websocket-test-*.log
+runtime-test.log
+lobby-broken.log

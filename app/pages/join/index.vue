@@ -350,7 +350,7 @@ useSeoMeta({
 });
 
 const userData = useUsersStore();
-const { setUserData } = userData;
+const { setUserData, confirmAuth, invalidateAuth } = userData;
 const sessionStore = useSessionStore();
 const { setActiveQuizTitle, setPlaySession, clearPlaySession } = sessionStore;
 const authChecking = ref(true);
@@ -544,6 +544,7 @@ const join_quiz = async () => {
 
     if (response.status === 200) {
       const role = response._data?.data?.role;
+      confirmAuth();
 
       displayName.value = response._data?.data?.firstname || "";
       internalUsername.value = response._data?.data?.username || "";
@@ -558,6 +559,7 @@ const join_quiz = async () => {
         isUserLoggedIn.value = true;
       }
     } else if (response.status === 401) {
+      invalidateAuth();
       isUserLoggedIn.value = false;
     } else {
       userError.value =

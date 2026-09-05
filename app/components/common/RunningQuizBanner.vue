@@ -351,9 +351,9 @@ watch(visible, (isVisible) => {
 });
 
 watch(
-  () => userDataStore.userData,
-  (value) => {
-    if (value) sync(true);
+  () => [userDataStore.userData, userDataStore.authConfirmed],
+  ([user, authConfirmed]) => {
+    if (user && authConfirmed) sync(true);
   }
 );
 
